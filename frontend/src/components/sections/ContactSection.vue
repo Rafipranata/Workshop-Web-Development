@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import SectionTitle from '../common/SectionTitle.vue'
+import { contentService } from '../../services/api'
 
 defineProps({
   contactData: {
@@ -16,20 +17,43 @@ const formData = ref({
   message: ''
 })
 
+const isSubmitting = ref(false)
 const isSubmitted = ref(false)
+const errorMessage = ref('')
 
-const handleSubmit = () => {
-  if (formData.value.name && formData.value.email) {
+const handleSubmit = async () => {
+  if (!formData.value.name || !formData.value.email || !formData.value.message) {
+    return
+  }
+
+  isSubmitting.value = true
+  errorMessage.value = ''
+  isSubmitted.value = false
+
+  try {
+    await contentService.createContact({
+      name: formData.value.name,
+      email: formData.value.email,
+      service: formData.value.service,
+      message: formData.value.message
+    })
+
     isSubmitted.value = true
+    formData.value = {
+      name: '',
+      email: '',
+      service: '',
+      message: ''
+    }
+
     setTimeout(() => {
-      formData.value = {
-        name: '',
-        email: '',
-        service: '',
-        message: ''
-      }
       isSubmitted.value = false
-    }, 4000)
+    }, 5000)
+  } catch (err) {
+    console.error('Failed to submit contact:', err)
+    errorMessage.value = 'Gagal mengirim pesan. Pastikan koneksi server backend menyala.'
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -88,14 +112,19 @@ const handleSubmit = () => {
         <div class="text-center pt-2">
           <button
             type="submit"
-            class="w-full sm:w-auto min-w-[200px] bg-brand-accent hover:bg-brand-accent-hover text-brand-white text-xs font-bold py-3.5 px-8 transition-colors tracking-widest uppercase cursor-pointer shadow-sm hover:shadow-md"
+            :disabled="isSubmitting"
+            class="w-full sm:w-auto min-w-[200px] bg-brand-accent hover:bg-brand-accent-hover text-brand-white text-xs font-bold py-3.5 px-8 transition-colors tracking-widest uppercase cursor-pointer shadow-sm hover:shadow-md disabled:opacity-50"
           >
-            {{ contactData.cta }}
+            {{ isSubmitting ? 'MENGIRIM PESAN...' : contactData.cta }}
           </button>
         </div>
 
         <div v-if="isSubmitted" class="text-center p-3 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded mt-4">
-          ✓ Pesan Anda telah terkirim! Tim konsultan Titan Konstruksi akan segera menghubungi Anda.
+          ✓ Pesan Anda telah berhasil terkirim dan tersimpan ke sistem Titan Konstruksi!
+        </div>
+
+        <div v-if="errorMessage" class="text-center p-3 bg-red-50 text-red-700 border border-red-200 text-xs rounded mt-4">
+          ✕ {{ errorMessage }}
         </div>
       </form>
     </div>
